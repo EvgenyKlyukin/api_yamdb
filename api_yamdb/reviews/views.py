@@ -1,6 +1,6 @@
-from rest_framework import viewsets
-from django_filters import rest_framework as filters
-from .models import Title
+from rest_framework import viewsets, filters
+from django_filters import rest_framework as django_filters
+from .models import Title, Category
 
 
 class TitleFilter(filters.FilterSet):
@@ -37,4 +37,28 @@ class TitleViewSet(viewsets.ModelViewSet):
     """
     queryset = Title.objects.all()
     filterset_class = TitleFilter
+    filter_backends = (django_filters.DjangoFilterBackend,)
+
+
+class CategoryViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet для работы с категориями.
+
+    list() - GET /categories/ - получение списка всех категорий
+    create() - POST /categories/ - создание категории
+    destroy() - DELETE /categories/{slug}/ - удаление категории
+
+    Поддерживает поиск по названию категории через параметр search.
+    Поля name и slug обязательны при создании.
+    Поле slug должно быть уникальным.
+
+    TODO:
+    - Добавить serializer_class (CategorySerializer)
+    - Добавить permissions_classes для разграничения доступа
+    """
+    queryset = Category.objects.all()
+    lookup_field = 'slug'
+    filter_backends = (filters.SearchFilter,)
+    search_fields = ('name',)
+    http_method_names = ['get', 'post', 'delete']
     filter_backends = (filters.DjangoFilterBackend,)
