@@ -63,8 +63,8 @@ class Title(models.Model):
         verbose_name='Год выпуска'
     )
     description = models.TextField(
-        blank=True, 
-        null=True, 
+        blank=True,
+        null=True,
         verbose_name='Описание'
     )
     category = models.ForeignKey(
@@ -92,12 +92,12 @@ class Title(models.Model):
 
 class GenreTitle(models.Model):
     genre = models.ForeignKey(
-        Genre, 
+        Genre,
         on_delete=models.CASCADE,
         verbose_name='Жанр'
     )
     title = models.ForeignKey(
-        Title, 
+        Title,
         on_delete=models.CASCADE,
         verbose_name='Произведение'
     )
