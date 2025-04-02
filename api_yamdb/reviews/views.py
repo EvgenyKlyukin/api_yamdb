@@ -1,6 +1,7 @@
 from rest_framework import viewsets, filters
 from django_filters import rest_framework as django_filters
-from .models import Title, Category
+
+from .models import Title, Category, Genre
 
 
 class TitleFilter(filters.FilterSet):
@@ -57,6 +58,29 @@ class CategoryViewSet(viewsets.ModelViewSet):
     - Добавить permissions_classes для разграничения доступа
     """
     queryset = Category.objects.all()
+    lookup_field = 'slug'
+    filter_backends = (filters.SearchFilter,)
+    search_fields = ('name',)
+    http_method_names = ['get', 'post', 'delete']
+
+
+class GenreViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet для работы с жанрами.
+
+    list() - GET /genres/ - получение списка всех жанров
+    create() - POST /genres/ - создание жанра
+    destroy() - DELETE /genres/{slug}/ - удаление жанра
+
+    Поддерживает поиск по названию жанра через параметр search.
+    Поля name и slug обязательны при создании.
+    Поле slug должно быть уникальным.
+
+    TODO:
+    - Добавить serializer_class (GenreSerializer)
+    - Добавить permissions_classes для разграничения доступа
+    """
+    queryset = Genre.objects.all()
     lookup_field = 'slug'
     filter_backends = (filters.SearchFilter,)
     search_fields = ('name',)
