@@ -66,8 +66,8 @@ class Title(models.Model):
         verbose_name='Год выпуска'
     )
     description = models.TextField(
-        blank=True, 
-        null=True, 
+        blank=True,
+        null=True,
         verbose_name='Описание'
     )
     category = models.ForeignKey(
@@ -95,19 +95,39 @@ class Title(models.Model):
 
 class GenreTitle(models.Model):
     genre = models.ForeignKey(
-        Genre, 
+        Genre,
+        Genre,
         on_delete=models.CASCADE,
         verbose_name='Жанр'
     )
     title = models.ForeignKey(
-        Title, 
+        Title,
+        Title,
         on_delete=models.CASCADE,
         verbose_name='Произведение'
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['genre', 'title'],
+                name='unique_genre_title'
+            )
+        ]
+        verbose_name = 'Жанр произведения'
+        verbose_name_plural = 'Жанры произведений'
+
+    def __str__(self):
+        return f'{self.genre} - {self.title}'
 
 
 class Reviews(models.Model):
-    # Заглушка, планируется ForeignKey с Title
-    title_id = models.IntegerField()
+    title_id = models.ForeignKey(
+        Title,
+        on_delete=models.CASCADE,
+        related_name='reviews',
+        verbose_name='Произведение'
+    )
     text = models.TextField(verbose_name="Текст отзыва")
     author = models.ForeignKey(
         User,
@@ -139,12 +159,3 @@ class Reviews(models.Model):
     def __str__(self):
         return (f"Отзыв {self.author.username} на {self.title.name} "
                 f"({self.score}/10)")
-                fields=['genre', 'title'],
-                name='unique_genre_title'
-            )
-        ]
-        verbose_name = 'Жанр произведения'
-        verbose_name_plural = 'Жанры произведений'
-
-    def __str__(self):
-        return f'{self.genre} - {self.title}'
