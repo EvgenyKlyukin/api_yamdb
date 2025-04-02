@@ -120,7 +120,7 @@ class GenreTitle(models.Model):
         return f'{self.genre} - {self.title}'
 
 
-class Reviews(models.Model):
+class Review(models.Model):
     title_id = models.ForeignKey(
         Title,
         on_delete=models.CASCADE,
@@ -142,13 +142,12 @@ class Reviews(models.Model):
         verbose_name="Дата публикации",
         auto_now_add=True
     )
-    
-    class Meta:  
-      constraints = [
+
+    class Meta:
+        constraints = [
             models.UniqueConstraint(
                 fields=['title', 'author'],
                 name='unique_review',
-                message='Вы уже оставляли отзыв на это произведение'
             )
         ]
         verbose_name = 'Отзыв'
@@ -178,8 +177,8 @@ class Comments(models.Model):
         verbose_name='Дата публикации',
         auto_now_add=True
     )
-    
-    class Meta: 
+
+    class Meta:
         verbose_name = 'Комментарий'
         verbose_name_plural = 'Комментарии'
         ordering = ['pub_date']
