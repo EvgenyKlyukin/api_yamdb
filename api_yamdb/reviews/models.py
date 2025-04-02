@@ -96,12 +96,11 @@ class Title(models.Model):
 class GenreTitle(models.Model):
     genre = models.ForeignKey(
         Genre,
-        Genre,
         on_delete=models.CASCADE,
         verbose_name='Жанр'
     )
+
     title = models.ForeignKey(
-        Title,
         Title,
         on_delete=models.CASCADE,
         verbose_name='Произведение'
