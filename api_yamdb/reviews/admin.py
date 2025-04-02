@@ -1,6 +1,7 @@
 from django.contrib import admin
 
-from .models import Category, Genre, Title, GenreTitle
+from reviews.constants import TEXT_RESTRICTION
+from .models import Category, Genre, Title, GenreTitle, Reviews, Comments
 
 
 @admin.register(Category)
@@ -28,3 +29,26 @@ class TitleAdmin(admin.ModelAdmin):
 class GenreTitleAdmin(admin.ModelAdmin):
     list_display = ('title', 'genre')
     list_filter = ('genre',)
+    
+
+@admin.register(Reviews)
+class ReviewsAdmin(admin.ModelAdmin):
+    list_display = ('title', 'author', 'score', 'pub_date')
+    list_filter = ('score', 'pub_date')
+    search_fields = ('text', 'author__username', 'title__name')
+    readonly_fields = ('pub_date',)
+    
+
+@admin.register(Comments)
+class CommentsAdmin(admin.ModelAdmin):
+    list_display = ('review', 'author', 'pub_date', 'short_text')
+    list_filter = ('pub_date', 'author')
+    search_fields = ('text', 'author__username', 'review__text')
+    readonly_fields = ('pub_date',)
+
+    def short_text(self, obj):
+        if len(obj.text) > TEXT_RESTRICTION:
+            obj.text[:TEXT_RESTRICTION] + '...'
+        else:
+            obj.text
+    short_text.short_description = 'Текст'
