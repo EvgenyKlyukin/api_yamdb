@@ -3,12 +3,12 @@ from django_filters import rest_framework as django_filters
 from .models import Title, Category
 
 
-class TitleFilter(django_filters.FilterSet):
+class TitleFilter(filters.FilterSet):
     """Фильтр для произведений."""
-    category = django_filters.CharFilter(field_name='category__slug')
-    genre = django_filters.CharFilter(field_name='genre__slug')
-    name = django_filters.CharFilter(field_name='name', lookup_expr='contains')
-    year = django_filters.NumberFilter(field_name='year')
+    category = filters.CharFilter(field_name='category__slug')
+    genre = filters.CharFilter(field_name='genre__slug')
+    name = filters.CharFilter(field_name='name', lookup_expr='contains')
+    year = filters.NumberFilter(field_name='year')
 
     class Meta:
         model = Title
@@ -18,7 +18,6 @@ class TitleFilter(django_filters.FilterSet):
 class TitleViewSet(viewsets.ModelViewSet):
     """
     ViewSet для работы с произведениями.
-
     list() - GET /titles/ - получение списка всех произведений
     create() - POST /titles/ - добавление произведения
     retrieve() - GET /titles/{id}/ - получение произведения
@@ -62,3 +61,4 @@ class CategoryViewSet(viewsets.ModelViewSet):
     filter_backends = (filters.SearchFilter,)
     search_fields = ('name',)
     http_method_names = ['get', 'post', 'delete']
+    filter_backends = (filters.DjangoFilterBackend,)
