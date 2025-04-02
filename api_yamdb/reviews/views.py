@@ -20,7 +20,7 @@ class TitleViewSet(viewsets.ModelViewSet):
     ViewSet для работы с произведениями.
 
     list() - GET /titles/ - получение списка всех произведений
-    create() - POST /titles/ - добавление произведения  
+    create() - POST /titles/ - добавление произведения
     retrieve() - GET /titles/{id}/ - получение произведения
     update() - PUT /titles/{id}/ - обновление произведения
     partial_update() - PATCH /titles/{id}/ - частичное обновление произведения
