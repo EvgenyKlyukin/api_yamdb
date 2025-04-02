@@ -1,6 +1,9 @@
+from django.contrib.auth import get_user_model
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
+
+User = get_user_model()
 
 
 def current_year():
@@ -96,6 +99,7 @@ class GenreTitle(models.Model):
         on_delete=models.CASCADE,
         verbose_name='Жанр'
     )
+
     title = models.ForeignKey(
         Title,
         on_delete=models.CASCADE,
@@ -114,3 +118,71 @@ class GenreTitle(models.Model):
 
     def __str__(self):
         return f'{self.genre} - {self.title}'
+
+
+class Reviews(models.Model):
+    title_id = models.ForeignKey(
+        Title,
+        on_delete=models.CASCADE,
+        related_name='reviews',
+        verbose_name='Произведение'
+    )
+    text = models.TextField(verbose_name="Текст отзыва")
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='reviews',
+        verbose_name='Автор отзыва'
+    )
+    score = models.PositiveSmallIntegerField(
+        verbose_name='Оценка',
+        validators=[MinValueValidator(1), MaxValueValidator(10)]
+    )
+    pub_date = models.DateTimeField(
+        verbose_name="Дата публикации",
+        auto_now_add=True
+    )
+    
+    class Meta:  
+      constraints = [
+            models.UniqueConstraint(
+                fields=['title', 'author'],
+                name='unique_review',
+                message='Вы уже оставляли отзыв на это произведение'
+            )
+        ]
+        verbose_name = 'Отзыв'
+        verbose_name_plural = 'Отзывы'
+        ordering = ['-pub_date']
+
+    def __str__(self):
+        return (f"Отзыв {self.author.username} на {self.title.name} "
+                f"({self.score}/10)")
+
+
+class Comments(models.Model):
+    review_id = models.ForeignKey(
+        'Review',
+        on_delete=models.CASCADE,
+        related_name='comments',
+        verbose_name='Отзыв'
+    )
+    text = models.TextField(verbose_name='Текст комментария')
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        verbose_name='Автор комментария'
+    )
+    pub_date = models.DateTimeField(
+        verbose_name='Дата публикации',
+        auto_now_add=True
+    )
+    
+    class Meta: 
+        verbose_name = 'Комментарий'
+        verbose_name_plural = 'Комментарии'
+        ordering = ['pub_date']
+
+    def __str__(self):
+        return f'Комментарий {self.author.username} к отзыву {self.review_id}'
