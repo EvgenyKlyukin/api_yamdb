@@ -1,13 +1,14 @@
-from rest_framework import viewsets, filters
+from django.shortcuts import get_object_or_404
 from django_filters import rest_framework as django_filters
+from rest_framework import filters, status, viewsets
+from rest_framework.exceptions import ValidationError
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
 
-from reviews.models import Title, Category, Genre
-from .serializers import (
-    TitleReadSerializer,
-    TitleWriteSerializer,
-    CategorySerializer,
-    GenreSerializer
-)
+from api.serializers import (CategorySerializer, CommentSerializer,
+                             GenreSerializer, ReviewSerializer,
+                             TitleReadSerializer, TitleWriteSerializer)
+from reviews.models import Category, Comments, Genre, Review, Title
 
 
 class TitleFilter(filters.FilterSet):
@@ -100,3 +101,68 @@ class GenreViewSet(viewsets.ModelViewSet):
     filter_backends = (filters.SearchFilter,)
     search_fields = ('name',)
     http_method_names = ['get', 'post', 'delete']
+
+
+class ReviewViewSet(viewsets.ModelViewSet):
+    """ViewSet для работы с отзывами."""
+    serializer_class = ReviewSerializer
+
+    def get_queryset(self):
+        return (
+            Review.objects
+            .filter(title_id=self.kwargs['title_id'])
+            .select_related('author', 'title')
+            .order_by('-pub_date')
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(
+            author=self.request.user,
+            title=get_object_or_404(Title, pk=self.kwargs['title_id'])
+        )
+
+    def create(self, request, *args, **kwargs):
+        if self.get_queryset().filter(author=request.user).exists():
+            raise ValidationError(
+                {'detail': 'Вы уже оставляли отзыв на это произведение.'},
+                code=status.HTTP_400_BAD_REQUEST
+            )
+        return super().create(request, *args, **kwargs)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['title'] = get_object_or_404(Title, pk=self.kwargs['title_id'])
+        return context
+
+
+class CommentViewSet(viewsets.ModelViewSet):
+    """ViewSet для работы с комментариями."""
+    serializer_class = CommentSerializer
+    http_method_names = ['get', 'post', 'patch', 'delete']
+
+    def get_queryset(self):
+        return (
+            Comments.objects
+            .filter(review_id=self.kwargs['review_id'])
+            .select_related('author', 'review')
+            .order_by('pub_date')
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(
+            author=self.request.user,
+            review=get_object_or_404(
+                Review,
+                pk=self.kwargs['review_id'],
+                title_id=self.kwargs['title_id']
+            )
+        )
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['review'] = get_object_or_404(
+            Review,
+            pk=self.kwargs['review_id'],
+            title_id=self.kwargs['title_id']
+        )
+        return context
