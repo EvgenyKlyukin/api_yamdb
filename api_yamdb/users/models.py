@@ -19,6 +19,17 @@ class User(AbstractUser):
     bio = models.TextField(verbose_name='биография')
     role = models.CharField(choices=ROLE_CHOICES, max_length=20)
 
+    def has_role(self, role):
+        return self.role == role
+
+    @property
+    def is_moderator(self):
+        return self.has_role('moderator')
+
+    @property
+    def is_admin(self):
+        return self.has_role('admin') or self.is_superuser or self.is_staff
+
     class Meta:
         verbose_name = 'пользователь'
         verbose_name_plural = 'пользователи'
