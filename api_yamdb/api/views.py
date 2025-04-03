@@ -2,7 +2,12 @@ from rest_framework import viewsets, filters
 from django_filters import rest_framework as django_filters
 
 from reviews.models import Title, Category, Genre
-from .serializers import TitleReadSerializer, TitleWriteSerializer
+from .serializers import (
+    TitleReadSerializer,
+    TitleWriteSerializer,
+    CategorySerializer,
+    GenreSerializer
+)
 
 
 class TitleFilter(filters.FilterSet):
@@ -18,6 +23,26 @@ class TitleFilter(filters.FilterSet):
 
 
 class TitleViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet для работы с произведениями.
+
+    list() - GET /titles/ - получение списка всех произведений
+    create() - POST /titles/ - добавление произведения
+    retrieve() - GET /titles/{id}/ - получение произведения
+    update() - PUT /titles/{id}/ - обновление произведения
+    partial_update() - PATCH /titles/{id}/ - частичное обновление произведения
+    destroy() - DELETE /titles/{id}/ - удаление произведения
+
+    Поддерживает фильтрацию:
+    - category - фильтр по slug категории
+    - genre - фильтр по slug жанра
+    - name - фильтр по названию произведения
+    - year - фильтр по году выпуска
+
+    TODO:
+    - Добавить permissions_classes для разграничения доступа
+      (GET - для всех, остальное - только для админа)
+    """
     queryset = Title.objects.all()
     filterset_class = TitleFilter
     filter_backends = (django_filters.DjangoFilterBackend,)
@@ -42,10 +67,11 @@ class CategoryViewSet(viewsets.ModelViewSet):
     Поле slug должно быть уникальным.
 
     TODO:
-    - Добавить serializer_class (CategorySerializer)
     - Добавить permissions_classes для разграничения доступа
+      (GET - для всех, POST/DELETE - только для админа)
     """
     queryset = Category.objects.all()
+    serializer_class = CategorySerializer
     lookup_field = 'slug'
     filter_backends = (filters.SearchFilter,)
     search_fields = ('name',)
@@ -65,10 +91,11 @@ class GenreViewSet(viewsets.ModelViewSet):
     Поле slug должно быть уникальным.
 
     TODO:
-    - Добавить serializer_class (GenreSerializer)
     - Добавить permissions_classes для разграничения доступа
+      (GET - для всех, POST/DELETE - только для админа)
     """
     queryset = Genre.objects.all()
+    serializer_class = GenreSerializer
     lookup_field = 'slug'
     filter_backends = (filters.SearchFilter,)
     search_fields = ('name',)
