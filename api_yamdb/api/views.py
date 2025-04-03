@@ -1,7 +1,8 @@
 from rest_framework import viewsets, filters
 from django_filters import rest_framework as django_filters
 
-from ..reviews.models import Title, Category, Genre
+from reviews.models import Title, Category, Genre
+from .serializers import TitleReadSerializer, TitleWriteSerializer
 
 
 class TitleFilter(filters.FilterSet):
@@ -17,28 +18,15 @@ class TitleFilter(filters.FilterSet):
 
 
 class TitleViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet для работы с произведениями.
-    list() - GET /titles/ - получение списка всех произведений
-    create() - POST /titles/ - добавление произведения
-    retrieve() - GET /titles/{id}/ - получение произведения
-    update() - PUT /titles/{id}/ - обновление произведения
-    partial_update() - PATCH /titles/{id}/ - частичное обновление произведения
-    destroy() - DELETE /titles/{id}/ - удаление произведения
-
-    Фильтрация:
-    - category - фильтр по slug категории
-    - genre - фильтр по slug жанра
-    - name - фильтр по названию произведения
-    - year - фильтр по году выпуска
-
-    TODO:
-    - Добавить serializer_class (TitleSerializer)
-    - Добавить permissions_classes для разграничения доступа
-    """
     queryset = Title.objects.all()
     filterset_class = TitleFilter
     filter_backends = (django_filters.DjangoFilterBackend,)
+    serializer_class = TitleWriteSerializer
+
+    def get_serializer_class(self):
+        if self.action in ('list', 'retrieve'):
+            return TitleReadSerializer
+        return self.serializer_class
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
