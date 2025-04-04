@@ -1,102 +1,113 @@
-from rest_framework import viewsets, filters
-from django_filters import rest_framework as django_filters
+import uuid
 
-from reviews.models import Title, Category, Genre
+from django.contrib.auth import get_user_model
+from django.core.mail import send_mail
+from django.shortcuts import get_object_or_404
+from rest_framework import filters, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import AccessToken
+
+from api_yamdb.settings import DEFAULT_FROM_EMAIL
+from .permissions import IsAdmin
 from .serializers import (
-    TitleReadSerializer,
-    TitleWriteSerializer,
-    CategorySerializer,
-    GenreSerializer
+    TokenObtainSerializer, UserProfileSerializer, UserSerializer,
+    UserSignUpSerializer
 )
 
-
-class TitleFilter(filters.FilterSet):
-    """Фильтр для произведений."""
-    category = filters.CharFilter(field_name='category__slug')
-    genre = filters.CharFilter(field_name='genre__slug')
-    name = filters.CharFilter(field_name='name', lookup_expr='contains')
-    year = filters.NumberFilter(field_name='year')
-
-    class Meta:
-        model = Title
-        fields = ['category', 'genre', 'name', 'year']
+User = get_user_model()
 
 
-class TitleViewSet(viewsets.ModelViewSet):
+class UserSignUpView(APIView):
     """
-    ViewSet для работы с произведениями.
-
-    list() - GET /titles/ - получение списка всех произведений
-    create() - POST /titles/ - добавление произведения
-    retrieve() - GET /titles/{id}/ - получение произведения
-    update() - PUT /titles/{id}/ - обновление произведения
-    partial_update() - PATCH /titles/{id}/ - частичное обновление произведения
-    destroy() - DELETE /titles/{id}/ - удаление произведения
-
-    Поддерживает фильтрацию:
-    - category - фильтр по slug категории
-    - genre - фильтр по slug жанра
-    - name - фильтр по названию произведения
-    - year - фильтр по году выпуска
-
-    TODO:
-    - Добавить permissions_classes для разграничения доступа
-      (GET - для всех, остальное - только для админа)
+    Регистрация пользователя и отправка кода подтверждения на email.
+    Права доступа: Доступно без токена.
     """
-    queryset = Title.objects.all()
-    filterset_class = TitleFilter
-    filter_backends = (django_filters.DjangoFilterBackend,)
-    serializer_class = TitleWriteSerializer
+    permission_classes = (AllowAny,)
 
-    def get_serializer_class(self):
-        if self.action in ('list', 'retrieve'):
-            return TitleReadSerializer
-        return self.serializer_class
+    def post(self, request):
+        serializer = UserSignUpSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        username = serializer.validated_data['username']
+
+        user, created = User.objects.get_or_create(
+            username=username,
+            email=email
+        )
+
+        confirmation_code = str(uuid.uuid4())
+        user.confirmation_code = confirmation_code
+        user.save()
+
+        send_mail(
+            subject='YaMDb registration',
+            message=f'Your confirmation code: {confirmation_code}',
+            from_email=DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class CategoryViewSet(viewsets.ModelViewSet):
+class TokenObtainView(APIView):
     """
-    ViewSet для работы с категориями.
-
-    list() - GET /categories/ - получение списка всех категорий
-    create() - POST /categories/ - создание категории
-    destroy() - DELETE /categories/{slug}/ - удаление категории
-
-    Поддерживает поиск по названию категории через параметр search.
-    Поля name и slug обязательны при создании.
-    Поле slug должно быть уникальным.
-
-    TODO:
-    - Добавить permissions_classes для разграничения доступа
-      (GET - для всех, POST/DELETE - только для админа)
+    Получение JWT-токена в обмен на username и confirmation code.
+    Права доступа: Доступно без токена.
     """
-    queryset = Category.objects.all()
-    serializer_class = CategorySerializer
-    lookup_field = 'slug'
+    permission_classes = (AllowAny,)
+
+    def post(self, request):
+        serializer = TokenObtainSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        username = serializer.validated_data['username']
+        confirmation_code = serializer.validated_data['confirmation_code']
+
+        user = get_object_or_404(User, username=username)
+
+        if not confirmation_code == user.confirmation_code:
+            return Response(
+                {'confirmation_code': ['Неверный код подтверждения']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        token = AccessToken.for_user(user)
+        return Response({'token': str(token)}, status=status.HTTP_200_OK)
+
+
+class UserViewSet(viewsets.ModelViewSet):
+    """
+    Работа с пользователями.
+    Права доступа: Администратор.
+    """
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = (IsAdmin,)
+    lookup_field = 'username'
     filter_backends = (filters.SearchFilter,)
-    search_fields = ('name',)
-    http_method_names = ['get', 'post', 'delete']
+    search_fields = ('username',)
+    pagination_class = PageNumberPagination
 
-
-class GenreViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet для работы с жанрами.
-
-    list() - GET /genres/ - получение списка всех жанров
-    create() - POST /genres/ - создание жанра
-    destroy() - DELETE /genres/{slug}/ - удаление жанра
-
-    Поддерживает поиск по названию жанра через параметр search.
-    Поля name и slug обязательны при создании.
-    Поле slug должно быть уникальным.
-
-    TODO:
-    - Добавить permissions_classes для разграничения доступа
-      (GET - для всех, POST/DELETE - только для админа)
-    """
-    queryset = Genre.objects.all()
-    serializer_class = GenreSerializer
-    lookup_field = 'slug'
-    filter_backends = (filters.SearchFilter,)
-    search_fields = ('name',)
-    http_method_names = ['get', 'post', 'delete']
+    @action(
+        detail=False,
+        methods=['get', 'patch'],
+        permission_classes=(IsAuthenticated,),
+        serializer_class=UserProfileSerializer,
+    )
+    def me(self, request):
+        """Получение и изменение данных своей учетной записи."""
+        if request.method == 'PATCH':
+            serializer = self.get_serializer(
+                request.user,
+                data=request.data,
+                partial=True
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
