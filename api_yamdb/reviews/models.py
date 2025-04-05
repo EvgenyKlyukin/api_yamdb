@@ -160,7 +160,7 @@ class Review(models.Model):
 
 
 class Comments(models.Model):
-    review_id = models.ForeignKey(
+    review = models.ForeignKey(
         Review,
         on_delete=models.CASCADE,
         related_name='comments',
@@ -184,4 +184,4 @@ class Comments(models.Model):
         ordering = ['pub_date']
 
     def __str__(self):
-        return f'Комментарий {self.author.username} к отзыву {self.review_id}'
+        return f'Комментарий {self.author.username} к отзыву {self.review.id}'

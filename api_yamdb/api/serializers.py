@@ -96,12 +96,12 @@ class CommentSerializer(serializers.ModelSerializer):
         slug_field='username',
         default=serializers.CurrentUserDefault()
     )
-    review_id = serializers.PrimaryKeyRelatedField(read_only=True)
+    review = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = Comments
-        fields = ('id', 'text', 'author', 'review_id', 'pub_date')
-        read_only_fields = ('id', 'author', 'review_id', 'pub_date')
+        fields = ('id', 'text', 'author', 'review', 'pub_date')
+        read_only_fields = ('id', 'author', 'review', 'pub_date')
         extra_kwargs = {
             'text': {'required': True}
         }
@@ -112,7 +112,7 @@ class CommentSerializer(serializers.ModelSerializer):
             review = self.context['view'].get_review()
             if Comments.objects.filter(
                 author=request.user,
-                review_id=review
+                review=review
             ).exists():
                 raise serializers.ValidationError(
                     'Вы уже оставляли комментарий к этому отзыву.'
@@ -120,6 +120,6 @@ class CommentSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        validated_data['review_id'] = self.context['view'].get_review()
+        validated_data['review'] = self.context['view'].get_review()
         validated_data['author'] = self.context['request'].user
         return super().create(validated_data)

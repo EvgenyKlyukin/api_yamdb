@@ -1,5 +1,4 @@
 import uuid
-
 from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404
 from rest_framework import filters, permissions, status, viewsets
@@ -9,9 +8,11 @@ from rest_framework_simplejwt.tokens import AccessToken
 
 from api_yamdb.settings import DEFAULT_FROM_EMAIL
 from .models import User
-from .permissions import IsAdmin
-from .serializers import (TokenSerializer, UserCreateSerializer,
-                          UserEditSerializer, UserSerializer)
+from api.permissions import IsAdmin
+from .serializers import (
+    UserCreateSerializer, UserEditSerializer,
+    UserSerializer, TokenSerializer
+)
 
 
 @api_view(['POST'])

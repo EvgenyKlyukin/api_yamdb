@@ -1,12 +1,13 @@
+from django.db.models import Avg
 from django.shortcuts import get_object_or_404
 from django_filters import rest_framework as django_filters
-from rest_framework import filters, status, viewsets
-from rest_framework.exceptions import ValidationError
+from rest_framework import filters, mixins, viewsets
 
 from api.serializers import (CategorySerializer, CommentSerializer,
                              GenreSerializer, ReviewSerializer,
                              TitleReadSerializer, TitleWriteSerializer)
 from reviews.models import Category, Comments, Genre, Review, Title
+from .permissions import IsAdminOrReadOnly, IsAdminModeratorAuthorOrReadOnly
 
 
 class TitleFilter(django_filters.FilterSet):
@@ -28,7 +29,6 @@ class TitleViewSet(viewsets.ModelViewSet):
     list() - GET /titles/ - получение списка всех произведений
     create() - POST /titles/ - добавление произведения
     retrieve() - GET /titles/{id}/ - получение произведения
-    update() - PUT /titles/{id}/ - обновление произведения
     partial_update() - PATCH /titles/{id}/ - частичное обновление произведения
     destroy() - DELETE /titles/{id}/ - удаление произведения
 
@@ -37,130 +37,143 @@ class TitleViewSet(viewsets.ModelViewSet):
     - genre - фильтр по slug жанра
     - name - фильтр по названию произведения
     - year - фильтр по году выпуска
-
-    TODO:
-    - Добавить permissions_classes для разграничения доступа
-      (GET - для всех, остальное - только для админа)
     """
     queryset = Title.objects.all()
     filterset_class = TitleFilter
     filter_backends = (django_filters.DjangoFilterBackend,)
+    permission_classes = (IsAdminOrReadOnly,)
     serializer_class = TitleWriteSerializer
+    http_method_names = ['get', 'post', 'patch', 'delete']
 
     def get_serializer_class(self):
         if self.action in ('list', 'retrieve'):
             return TitleReadSerializer
         return self.serializer_class
 
+    def get_queryset(self):
+        return Title.objects.annotate(
+            rating=Avg('reviews__score')
+        ).order_by('name')
 
-class CategoryViewSet(viewsets.ModelViewSet):
+
+class ListCreateDestroyViewSet(mixins.ListModelMixin,
+                               mixins.CreateModelMixin,
+                               mixins.DestroyModelMixin,
+                               viewsets.GenericViewSet):
+    """Базовый ViewSet для операций list, create, destroy."""
+    pass
+
+
+class CategoryViewSet(ListCreateDestroyViewSet):
     """
-    ViewSet для работы с категориями.
-
-    list() - GET /categories/ - получение списка всех категорий
-    create() - POST /categories/ - создание категории
-    destroy() - DELETE /categories/{slug}/ - удаление категории
-
-    Поддерживает поиск по названию категории через параметр search.
-    Поля name и slug обязательны при создании.
-    Поле slug должно быть уникальным.
-
-    TODO:
-    - Добавить permissions_classes для разграничения доступа
-      (GET - для всех, POST/DELETE - только для админа)
+    ViewSet для работы с категориями (list, create, destroy).
     """
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     lookup_field = 'slug'
     filter_backends = (filters.SearchFilter,)
     search_fields = ('name',)
-    http_method_names = ['get', 'post', 'delete']
+    permission_classes = (IsAdminOrReadOnly,)
 
 
-class GenreViewSet(viewsets.ModelViewSet):
+class GenreViewSet(ListCreateDestroyViewSet):
     """
-    ViewSet для работы с жанрами.
-
-    list() - GET /genres/ - получение списка всех жанров
-    create() - POST /genres/ - создание жанра
-    destroy() - DELETE /genres/{slug}/ - удаление жанра
-
-    Поддерживает поиск по названию жанра через параметр search.
-    Поля name и slug обязательны при создании.
-    Поле slug должно быть уникальным.
-
-    TODO:
-    - Добавить permissions_classes для разграничения доступа
-      (GET - для всех, POST/DELETE - только для админа)
+    ViewSet для работы с жанрами (list, create, destroy).
     """
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
     lookup_field = 'slug'
     filter_backends = (filters.SearchFilter,)
     search_fields = ('name',)
-    http_method_names = ['get', 'post', 'delete']
+    permission_classes = (IsAdminOrReadOnly,)
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
-    """ViewSet для работы с отзывами."""
+    """
+    ViewSet для работы с отзывами.
+
+    Поддерживает операции:
+    - GET /titles/{title_id}/reviews/ - получение списка отзывов
+    - POST /titles/{title_id}/reviews/ - добавление отзыва
+    - GET /titles/{title_id}/reviews/{review_id}/ - получение отзыва
+    - PATCH /titles/{title_id}/reviews/{review_id}/ - частичное обновление
+      отзыва
+    - DELETE /titles/{title_id}/reviews/{review_id}/ - удаление отзыва
+    """
     serializer_class = ReviewSerializer
+    permission_classes = (IsAdminModeratorAuthorOrReadOnly,)
+    http_method_names = ['get', 'post', 'patch', 'delete']
+
+    def get_title(self):
+        return get_object_or_404(Title, pk=self.kwargs['title_id'])
 
     def get_queryset(self):
+        title = self.get_title()
         return (
             Review.objects
-            .filter(title_id=self.kwargs['title_id'])
+            .filter(title=title)
             .select_related('author', 'title')
             .order_by('-pub_date')
         )
 
     def perform_create(self, serializer):
+        title = self.get_title()
         serializer.save(
             author=self.request.user,
-            title=get_object_or_404(Title, pk=self.kwargs['title_id'])
+            title=title
         )
-
-    def create(self, request, *args, **kwargs):
-        if self.get_queryset().filter(author=request.user).exists():
-            raise ValidationError(
-                {'detail': 'Вы уже оставляли отзыв на это произведение.'},
-                code=status.HTTP_400_BAD_REQUEST
-            )
-        return super().create(request, *args, **kwargs)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context['title'] = get_object_or_404(Title, pk=self.kwargs['title_id'])
+        context['title'] = self.get_title()
         return context
 
 
 class CommentViewSet(viewsets.ModelViewSet):
-    """ViewSet для работы с комментариями."""
+    """
+    ViewSet для работы с комментариями.
+
+    Поддерживает операции:
+    - GET /titles/{title_id}/reviews/{review_id}/comments/ - получение списка
+      комментариев
+    - POST /titles/{title_id}/reviews/{review_id}/comments/ - добавление
+      комментария
+    - GET /titles/{title_id}/reviews/{review_id}/comments/{comment_id}/ -
+      получение комментария
+    - PATCH /titles/{title_id}/reviews/{review_id}/comments/{comment_id}/ -
+      частичное обновление комментария
+    - DELETE /titles/{title_id}/reviews/{review_id}/comments/{comment_id}/ -
+      удаление комментария
+    """
     serializer_class = CommentSerializer
+    permission_classes = (IsAdminModeratorAuthorOrReadOnly,)
     http_method_names = ['get', 'post', 'patch', 'delete']
 
+    def get_review(self):
+        title = get_object_or_404(Title, pk=self.kwargs['title_id'])
+        return get_object_or_404(
+            Review,
+            pk=self.kwargs['review_id'],
+            title=title
+        )
+
     def get_queryset(self):
+        review = self.get_review()
         return (
             Comments.objects
-            .filter(review_id=self.kwargs['review_id'])
+            .filter(review=review)
             .select_related('author', 'review')
             .order_by('pub_date')
         )
 
     def perform_create(self, serializer):
+        review = self.get_review()
         serializer.save(
             author=self.request.user,
-            review=get_object_or_404(
-                Review,
-                pk=self.kwargs['review_id'],
-                title_id=self.kwargs['title_id']
-            )
+            review=review
         )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context['review'] = get_object_or_404(
-            Review,
-            pk=self.kwargs['review_id'],
-            title_id=self.kwargs['title_id']
-        )
+        context['review'] = self.get_review()
         return context
