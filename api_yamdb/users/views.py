@@ -8,7 +8,7 @@ from rest_framework_simplejwt.tokens import AccessToken
 
 from api_yamdb.settings import DEFAULT_FROM_EMAIL
 from .models import User
-from .permissions import IsAdmin
+from api.permissions import IsAdmin
 from .serializers import (
     UserCreateSerializer, UserEditSerializer,
     UserSerializer, TokenSerializer
