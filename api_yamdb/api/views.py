@@ -2,8 +2,6 @@ from django.shortcuts import get_object_or_404
 from django_filters import rest_framework as django_filters
 from rest_framework import filters, status, viewsets
 from rest_framework.exceptions import ValidationError
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.response import Response
 
 from api.serializers import (CategorySerializer, CommentSerializer,
                              GenreSerializer, ReviewSerializer,
@@ -11,12 +9,12 @@ from api.serializers import (CategorySerializer, CommentSerializer,
 from reviews.models import Category, Comments, Genre, Review, Title
 
 
-class TitleFilter(filters.FilterSet):
+class TitleFilter(django_filters.FilterSet):
     """Фильтр для произведений."""
-    category = filters.CharFilter(field_name='category__slug')
-    genre = filters.CharFilter(field_name='genre__slug')
-    name = filters.CharFilter(field_name='name', lookup_expr='contains')
-    year = filters.NumberFilter(field_name='year')
+    category = django_filters.CharFilter(field_name='category__slug')
+    genre = django_filters.CharFilter(field_name='genre__slug')
+    name = django_filters.CharFilter(field_name='name', lookup_expr='contains')
+    year = django_filters.NumberFilter(field_name='year')
 
     class Meta:
         model = Title
