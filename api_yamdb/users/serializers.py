@@ -3,7 +3,7 @@ import re
 from django.core.exceptions import ValidationError
 from rest_framework import serializers
 
-from .models import User
+from users.models import User
 
 
 class UserCreateSerializer(serializers.ModelSerializer):

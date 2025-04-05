@@ -3,11 +3,11 @@ from django.shortcuts import get_object_or_404
 from django_filters import rest_framework as django_filters
 from rest_framework import filters, mixins, viewsets
 
+from api.permissions import IsAdminOrReadOnly, IsAdminModeratorAuthorOrReadOnly
 from api.serializers import (CategorySerializer, CommentSerializer,
                              GenreSerializer, ReviewSerializer,
                              TitleReadSerializer, TitleWriteSerializer)
 from reviews.models import Category, Comments, Genre, Review, Title
-from .permissions import IsAdminOrReadOnly, IsAdminModeratorAuthorOrReadOnly
 
 
 class TitleFilter(django_filters.FilterSet):
