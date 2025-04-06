@@ -7,7 +7,7 @@ from api.permissions import IsAdminOrReadOnly, IsAdminModeratorAuthorOrReadOnly
 from api.serializers import (CategorySerializer, CommentSerializer,
                              GenreSerializer, ReviewSerializer,
                              TitleReadSerializer, TitleWriteSerializer)
-from reviews.models import Category, Comments, Genre, Review, Title
+from reviews.models import Category, Genre, Review, Title
 
 
 class TitleFilter(django_filters.FilterSet):
@@ -38,7 +38,9 @@ class TitleViewSet(viewsets.ModelViewSet):
     - name - фильтр по названию произведения
     - year - фильтр по году выпуска
     """
-    queryset = Title.objects.all()
+    queryset = Title.objects.annotate(
+        rating=Avg('title_reviews__score')
+    ).order_by('name')
     filterset_class = TitleFilter
     filter_backends = (django_filters.DjangoFilterBackend,)
     permission_classes = (IsAdminOrReadOnly,)
@@ -50,18 +52,12 @@ class TitleViewSet(viewsets.ModelViewSet):
             return TitleReadSerializer
         return self.serializer_class
 
-    def get_queryset(self):
-        return Title.objects.annotate(
-            rating=Avg('title_reviews__score')
-        ).order_by('name')
-
 
 class ListCreateDestroyViewSet(mixins.ListModelMixin,
                                mixins.CreateModelMixin,
                                mixins.DestroyModelMixin,
                                viewsets.GenericViewSet):
     """Базовый ViewSet для операций list, create, destroy."""
-    pass
 
 
 class CategoryViewSet(ListCreateDestroyViewSet):
@@ -108,10 +104,9 @@ class ReviewViewSet(viewsets.ModelViewSet):
         return get_object_or_404(Title, pk=self.kwargs['title_id'])
 
     def get_queryset(self):
-        title = self.get_title()
         return (
             Review.objects
-            .filter(title=title)
+            .filter(title_id=self.kwargs['title_id'])
             .select_related('author', 'title')
             .order_by('-pub_date')
         )
@@ -150,18 +145,16 @@ class CommentViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete']
 
     def get_review(self):
-        title = get_object_or_404(Title, pk=self.kwargs['title_id'])
         return get_object_or_404(
             Review,
             pk=self.kwargs['review_id'],
-            title=title
+            title_id=self.kwargs['title_id']
         )
 
     def get_queryset(self):
         review = self.get_review()
         return (
-            Comments.objects
-            .filter(review=review)
+            review.review_comments
             .select_related('author', 'review')
             .order_by('pub_date')
         )
