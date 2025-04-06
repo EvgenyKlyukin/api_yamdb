@@ -75,10 +75,7 @@ class ReviewSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and request.method == 'POST':
             title = self.context['view'].get_title()
-            if Review.objects.filter(
-                author=request.user,
-                title=title
-            ).exists():
+            if request.user.user_reviews.filter(title=title).exists():
                 raise serializers.ValidationError(
                     'Вы уже оставляли отзыв на это произведение.'
                 )
@@ -110,10 +107,7 @@ class CommentSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and request.method == 'POST':
             review = self.context['view'].get_review()
-            if Comments.objects.filter(
-                author=request.user,
-                review=review
-            ).exists():
+            if request.user.user_comments.filter(review=review).exists():
                 raise serializers.ValidationError(
                     'Вы уже оставляли комментарий к этому отзыву.'
                 )
