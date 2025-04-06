@@ -1,7 +1,6 @@
 import uuid
 
 from django.core.mail import send_mail
-from django.shortcuts import get_object_or_404
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
@@ -23,22 +22,6 @@ def signup(request):
 
     username = serializer.validated_data['username']
     email = serializer.validated_data['email']
-
-    if User.objects.filter(email=email).exclude(username=username).exists():
-        return Response(
-            {'email': ['Email уже используется']},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    if User.objects.filter(username=username).exclude(email=email).exists():
-        return Response(
-            {
-                'username': [
-                    'Пользователь с таким именем уже существует'
-                ]
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
 
     user, _ = User.objects.get_or_create(username=username, email=email)
 
@@ -62,20 +45,16 @@ def signup(request):
 def get_token(request):
     """Получение токена."""
     serializer = TokenSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
 
-    user = get_object_or_404(
-        User,
-        username=serializer.validated_data['username']
-    )
+    if not serializer.is_valid():
+        if 'username' in serializer.errors and (
+            serializer.errors['username'][0].code == 'not_found'
+        ):
+            return Response(serializer.errors,
+                            status=status.HTTP_404_NOT_FOUND)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    conf_code = serializer.validated_data['confirmation_code']
-    if user.confirmation_code != conf_code:
-        return Response(
-            {'confirmation_code': ['Неверный код']},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
+    user = serializer.validated_data['user']
     token = AccessToken.for_user(user)
     return Response({'token': str(token)}, status=status.HTTP_200_OK)
 
