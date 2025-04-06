@@ -1,7 +1,8 @@
 from django.contrib import admin
 
-from reviews.constants import TEXT_RESTRICTION
 from reviews.models import Category, Comments, Genre, GenreTitle, Review, Title
+
+TEXT_RESTRICTION = 50
 
 
 @admin.register(Category)

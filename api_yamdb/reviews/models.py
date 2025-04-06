@@ -5,6 +5,8 @@ from django.utils import timezone
 
 LENGTH_LIMITATION_NAME = 256
 LENGTH_LIMITATION_SLUG = 50
+SCORE_LIMITATION_MIN = 1
+SCORE_LIMITATION_MAX = 10
 
 User = get_user_model()
 
@@ -37,12 +39,14 @@ class Category(NameSlugModel):
     class Meta(NameSlugModel.Meta):
         verbose_name = 'Категория'
         verbose_name_plural = 'Категории'
+        ordering = ['name']
 
 
 class Genre(NameSlugModel):
     class Meta(NameSlugModel.Meta):
         verbose_name = 'Жанр'
         verbose_name_plural = 'Жанры'
+        ordering = ['name']
 
 
 class Title(models.Model):
@@ -52,7 +56,8 @@ class Title(models.Model):
     )
     year = models.PositiveSmallIntegerField(
         validators=[
-            MinValueValidator(1, message='Год не может быть меньше 1'),
+            MinValueValidator(SCORE_LIMITATION_MIN,
+                              message='Год не может быть меньше 1'),
             MaxValueValidator(
                 current_year,
                 message='Год не может быть больше текущего'
@@ -113,6 +118,7 @@ class GenreTitle(models.Model):
         ]
         verbose_name = 'Жанр произведения'
         verbose_name_plural = 'Жанры произведений'
+        ordering = ['id']
 
     def __str__(self):
         return f'{self.genre} - {self.title}'
@@ -134,7 +140,8 @@ class Review(models.Model):
     )
     score = models.PositiveSmallIntegerField(
         verbose_name='Оценка',
-        validators=[MinValueValidator(1), MaxValueValidator(10)]
+        validators=[MinValueValidator(SCORE_LIMITATION_MIN),
+                    MaxValueValidator(SCORE_LIMITATION_MAX)]
     )
     pub_date = models.DateTimeField(
         verbose_name='Дата публикации',
