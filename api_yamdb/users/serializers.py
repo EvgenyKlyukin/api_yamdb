@@ -5,12 +5,15 @@ from rest_framework import serializers
 
 from users.models import User
 
+CHARACTER_RESTRICTION_EMAIL = 254
+CHARACTER_RESTRICTION_USERNAME = 150
+
 
 class UserCreateSerializer(serializers.ModelSerializer):
     """Сериализатор для регистрации пользователей."""
 
-    email = serializers.EmailField()
-    username = serializers.CharField()
+    email = serializers.EmailField(max_length=CHARACTER_RESTRICTION_EMAIL)
+    username = serializers.CharField(max_length=CHARACTER_RESTRICTION_USERNAME)
 
     class Meta:
         fields = ('username', 'email')
@@ -23,22 +26,14 @@ class UserCreateSerializer(serializers.ModelSerializer):
             raise ValidationError(
                 'Username может содержать только буквы, цифры и @/./+/-/_'
             )
-        if len(value) > 150:
-            raise ValidationError(
-                'Username не может быть длиннее 150 символов'
-            )
-        return value
-
-    def validate_email(self, value):
-        if len(value) > 254:
-            raise ValidationError(
-                'Email не может быть длиннее 254 символов'
-            )
         return value
 
     def validate(self, data):
         username = data.get('username')
         email = data.get('email')
+
+        if User.objects.filter(email=email, username=username).exists():
+            return data
 
         if User.objects.filter(
             email=email
