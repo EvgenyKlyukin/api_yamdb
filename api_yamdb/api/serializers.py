@@ -3,6 +3,9 @@ from rest_framework import serializers
 
 from reviews.models import Category, Comments, Genre, Review, Title
 
+SCORE_LIMITATION_MIN = 1
+SCORE_LIMITATION_MAX = 10
+
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -65,8 +68,8 @@ class ReviewSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'score': {
                 'validators': [
-                    MinValueValidator(1),
-                    MaxValueValidator(10)
+                    MinValueValidator(SCORE_LIMITATION_MIN),
+                    MaxValueValidator(SCORE_LIMITATION_MAX)
                 ]
             }
         }
@@ -109,7 +112,7 @@ class CommentSerializer(serializers.ModelSerializer):
             review = self.context['view'].get_review()
             if request.user.user_comments.filter(review=review).exists():
                 raise serializers.ValidationError(
-                    'Вы уже оставляли комментарий к этому отзыву.'
+                    'Вы уже оставляли комментарий к этому отз   ыву.'
                 )
         return data
 
